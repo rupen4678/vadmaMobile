@@ -1,5 +1,9 @@
-name: Vadama
-on: [workflow_dispatch, push] # Runs when you push code or click 'Run' manually
+name: Build iOS IPA
+on: [workflow_dispatch, push]
+
+env:
+  # This removes the Node.js 20 deprecation warning
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   build:
@@ -12,19 +16,29 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
+          cache: true
 
       - name: Install Dependencies
         run: flutter pub get
 
       - name: Build iOS (Unsigned)
         run: |
+          # 1. Build the .app bundle without code signing
           flutter build ios --release --no-codesign
-          mkdir Payload
-          cp -r build/ios/iphoneos/Runner.app Payload
-          zip -r FlutterIpaExport.ipa Payload
+          
+          # 2. Create the Payload directory structure required for .ipa files
+          mkdir -p build/ios/iphoneos/Payload
+          
+          # 3. Copy the compiled app into the Payload folder
+          cp -r build/ios/iphoneos/Runner.app build/ios/iphoneos/Payload
+          
+          # 4. Zip the folder and name it as an .ipa
+          cd build/ios/iphoneos
+          zip -r ../../../FlutterIpaExport.ipa Payload
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ios-ipa
+          name: ios-ipa-release
           path: FlutterIpaExport.ipa
+
