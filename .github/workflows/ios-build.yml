@@ -25,13 +25,15 @@ jobs:
       - name: Flutter Pub Get
         run: flutter pub get
 
-      - name: Install Pods
+       - name: Install Pods
         run: |
           cd ios
-          rm -rf Pods
-          rm -f Podfile.lock
-          pod install --repo-update
+          # Ensure there is a project to link to
+          if [ ! -d "Runner.xcodeproj" ]; then echo "Error: Runner.xcodeproj not found!"; exit 1; fi
+          
+          pod install --repo-update || (pod repo update && pod      install)
           cd ..
+
 
       - name: Build iOS (Unsigned)
         run: |
