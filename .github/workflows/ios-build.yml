@@ -2,7 +2,6 @@ name: Build iOS IPA
 on: [workflow_dispatch, push]
 
 env:
-  # This removes the Node.js 20 deprecation warning
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
@@ -18,37 +17,31 @@ jobs:
           channel: 'stable'
           cache: true
 
-	        - name: Install Dependencies
+      - name: Install CocoaPods
         run: |
-          flutter pub get
-          cd ios
-          pod install || (pod repo update && pod install)
-          cd ..
+          sudo gem install cocoapods
+          pod setup
 
+      - name: Flutter Pub Get
+        run: flutter pub get
+
+      - name: Install Pods
+        run: |
+          cd ios
+          rm -rf Pods
+          rm -f Podfile.lock
+          pod install --repo-update
+          cd ..
 
       - name: Build iOS (Unsigned)
         run: |
-          # 1. Build the .app bundle without code signing
           flutter build ios --release --no-codesign
-          
-          # 2. Create the Payload directory structure required for .ipa files
-          mkdir -p build/ios/iphoneos/Payload
-          
-          # 3. Copy the compiled app into the Payload folder
-          cp -r build/ios/iphoneos/Runner.app build/ios/iphoneos/Payload
-          
-          # 4. Zip the folder and name it as an .ipa
-          cd build/ios/iphoneos
-          zip -r ../../../FlutterIpaExport.ipa Payload
+          mkdir -p Payload
+          cp -r build/ios/iphoneos/Runner.app Payload
+          zip -r FlutterIpaExport.ipa Payload
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ios-ipa-release
+          name: ios-ipa
           path: FlutterIpaExport.ipa
-
-post_install do |installer|
-  installer.pods_project.targets.each do |target|
-    flutter_additional_ios_build_settings(target)
-  end
-end
